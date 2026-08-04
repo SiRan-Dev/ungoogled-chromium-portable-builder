@@ -63,7 +63,7 @@ Ungoogled Chromium also does not support installing extensions directly from the
 
 1. Open `chrome://flags/#extension-mime-request-handling`.
 2. Set the flag to `Always prompt for install`. If it is already set to this option, skip this step.
-3. Install [Chromium Web Store v1.5.5.3](https://github.com/NeverDecaf/chromium-web-store/releases/download/v1.5.5.3/Chromium.Web.Store.crx). Use a proxy if the link cannot be opened from your network.
+3. Install [Chromium Web Store](https://github.com/NeverDecaf/chromium-web-store/releases/). Use a proxy if the link cannot be opened from your network.
 4. After the extension is installed, you can install other extensions online from the Chrome Web Store.
 
 ## Notes
