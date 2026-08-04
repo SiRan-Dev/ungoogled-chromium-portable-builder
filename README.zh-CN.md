@@ -63,7 +63,7 @@ Ungoogled Chromium 默认不支持直接通过 Chrome 网上应用店安装扩�
 
 1. 打开 `chrome://flags/#extension-mime-request-handling`。
 2. 将选项设置为 `Always prompt for install`。如果已经是这个选项，就跳过这一步。
-3. 安装 [Chromium Web Store v1.5.5.3](https://github.com/NeverDecaf/chromium-web-store/releases/download/v1.5.5.3/Chromium.Web.Store.crx)。如果链接打不开，请自行使用代理。
+3. 安装 [Chromium Web Store](https://github.com/NeverDecaf/chromium-web-store/releases/)。如果链接打不开，请自行使用代理。
 4. 装好这个扩展以后，就可以在线安装其他插件了。
 
 ## 注意事项
