@@ -73,4 +73,4 @@ Ungoogled Chromium also does not support installing extensions directly from the
 
 ## License
 
-[GNU General Public License v3.0](LICENSE) - Copyright (c) 2026, EchoRan
+[GNU General Public License v3.0](LICENSE) - Copyright (c) 2026, ReRanr
