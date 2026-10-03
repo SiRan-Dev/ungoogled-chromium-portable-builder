@@ -13,9 +13,15 @@ param(
 
     [string]$ChromePlusIniPath,
 
+    [string]$UngoogledRepo = 'ungoogled-software/ungoogled-chromium-windows',
+
+    [string]$ChromePlusRepo = 'BlackRosePetals/chromeplus',
+
     [switch]$KeepWorkDir,
 
     [switch]$SkipArchive,
+
+    [switch]$ResolveOnly,
 
     [switch]$Force
 )
@@ -58,8 +64,16 @@ function Remove-DirectorySafe {
 function Invoke-GitHubLatestRelease {
     param([string]$Repository)
 
+    $headers = @{
+        'User-Agent' = 'ungoogled-chromium-portable-builder'
+        'Accept'     = 'application/vnd.github+json'
+    }
+    if ($env:GITHUB_TOKEN) {
+        $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN"
+    }
+
     $uri = "https://api.github.com/repos/$Repository/releases/latest"
-    return Invoke-RestMethod -Uri $uri
+    return Invoke-RestMethod -Uri $uri -Headers $headers
 }
 
 function Get-ReleaseAsset {
@@ -77,6 +91,22 @@ function Get-ReleaseAsset {
 
     $available = ($Release.assets | Select-Object -ExpandProperty name) -join ', '
     throw "No asset matched patterns [$($Patterns -join '; ')] in release $($Release.tag_name). Available assets: $available"
+}
+
+function Get-ChromePlusVersion {
+    param(
+        [string]$AssetName,
+        [string]$TagName
+    )
+
+    # Asset names look like Chrome++_v1.18.0_x86_x64_arm64.7z. Upstream tags are not
+    # always version-shaped (some mirrors use dates), so prefer the asset name.
+    $match = [regex]::Match($AssetName, '^Chrome\+\+_v(?<version>[0-9][^_]*)')
+    if ($match.Success) {
+        return $match.Groups['version'].Value
+    }
+
+    return $TagName.TrimStart('v')
 }
 
 function Download-Asset {
@@ -194,6 +224,36 @@ function Copy-ChromePlusFile {
     }
 }
 
+Write-Step 'Fetching latest release metadata'
+$ungoogledRelease = Invoke-GitHubLatestRelease -Repository $UngoogledRepo
+$chromePlusRelease = Invoke-GitHubLatestRelease -Repository $ChromePlusRepo
+
+$ungoogledAsset = Get-ReleaseAsset -Release $ungoogledRelease -Patterns @(
+    "_installer_${Arch}\.exe$"
+)
+$chromePlusAsset = Get-ReleaseAsset -Release $chromePlusRelease -Patterns @(
+    '^Chrome\+\+_v.*\.7z$'
+)
+
+$chromePlusVersion = Get-ChromePlusVersion -AssetName $chromePlusAsset.name -TagName $chromePlusRelease.tag_name
+$releaseTag = "$($ungoogledRelease.tag_name)-$chromePlusVersion"
+
+Write-Step "ungoogled-chromium $($ungoogledRelease.tag_name) + Chrome++ $chromePlusVersion"
+Write-Step "Release tag: $releaseTag"
+
+if ($env:GITHUB_OUTPUT) {
+    "tag=$releaseTag" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+    "ungoogled_tag=$($ungoogledRelease.tag_name)" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+    "chrome_plus_version=$chromePlusVersion" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+    "ungoogled_asset=$($ungoogledAsset.name)" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+    "chrome_plus_asset=$($chromePlusAsset.name)" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+}
+
+if ($ResolveOnly) {
+    Write-Step 'Resolve-only mode: resolved upstream versions without downloading anything.'
+    return
+}
+
 $sevenZip = Get-RequiredCommand -Name '7z'
 Ensure-Directory -Path $DownloadDir
 Ensure-Directory -Path $WorkDir
@@ -212,17 +272,6 @@ Remove-DirectorySafe -Path $outerExtractDir
 Remove-DirectorySafe -Path $innerExtractDir
 Remove-DirectorySafe -Path $chromePlusExtractDir
 Remove-DirectorySafe -Path $portableRoot
-
-Write-Step 'Fetching latest release metadata'
-$ungoogledRelease = Invoke-GitHubLatestRelease -Repository 'ungoogled-software/ungoogled-chromium-windows'
-$chromePlusRelease = Invoke-GitHubLatestRelease -Repository 'Bush2021/chrome_plus'
-
-$ungoogledAsset = Get-ReleaseAsset -Release $ungoogledRelease -Patterns @(
-    "_installer_${Arch}\.exe$"
-)
-$chromePlusAsset = Get-ReleaseAsset -Release $chromePlusRelease -Patterns @(
-    '^Chrome\+\+_v.*\.7z$'
-)
 
 $ungoogledInstallerPath = Join-Path $DownloadDir $ungoogledAsset.name
 $chromePlusArchivePath = Join-Path $DownloadDir $chromePlusAsset.name
@@ -266,15 +315,17 @@ Copy-ChromePlusFile -Source $chromeIniSource -Destination (Join-Path $appDir 'ch
 $metadata = [ordered]@{
     build_time_utc = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
     arch = $Arch
+    release_tag = $releaseTag
     ungoogled = [ordered]@{
-        repository = 'ungoogled-software/ungoogled-chromium-windows'
+        repository = $UngoogledRepo
         tag = $ungoogledRelease.tag_name
         asset = $ungoogledAsset.name
         published_at = $ungoogledRelease.published_at
     }
     chrome_plus = [ordered]@{
-        repository = 'Bush2021/chrome_plus'
+        repository = $ChromePlusRepo
         tag = $chromePlusRelease.tag_name
+        version = $chromePlusVersion
         asset = $chromePlusAsset.name
         published_at = $chromePlusRelease.published_at
     }

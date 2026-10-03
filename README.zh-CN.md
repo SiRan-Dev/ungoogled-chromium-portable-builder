@@ -4,7 +4,16 @@
 
 [English](README.md)
 
-自动构建 [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium-windows) 便携版，集成 [Chrome++](https://github.com/Bush2021/chrome_plus) 补丁。支持 x64 / x86 / arm64，GitHub Actions 每 12 小时自动检查上游更新。
+自动构建 [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium-windows) 便携版，集成 [Chrome++](https://github.com/BlackRosePetals/chromeplus) 补丁。支持 x64 / x86 / arm64，GitHub Actions 每 12 小时自动检查上游更新。
+
+## 上游来源
+
+| 组件 | 仓库 |
+|------|------|
+| ungoogled-chromium | [`ungoogled-software/ungoogled-chromium-windows`](https://github.com/ungoogled-software/ungoogled-chromium-windows) |
+| Chrome++ | [`BlackRosePetals/chromeplus`](https://github.com/BlackRosePetals/chromeplus) |
+
+原 `Bush2021/chrome_plus` 仓库已不可访问，因此改用上面这个仍在维护的 fork。它的压缩包结构完全一致（`<arch>/App/version.dll` 与 `<arch>/App/chrome++.ini`），无需其他改动。如果上游再次迁移，用 `-ChromePlusRepo` / `-UngoogledRepo` 指定新仓库即可，不必改脚本。
 
 ## 流程
 
@@ -43,6 +52,9 @@ pwsh .\build-portable.ps1 -Arch arm64 -Force
 | `-SkipArchive` | 只生成目录，不打 `.7z` |
 | `-ChromePlusIniPath` | 自定义 `chrome++.ini` |
 | `-KeepWorkDir` | 保留解压临时目录 |
+| `-UngoogledRepo` | ungoogled-chromium 上游仓库，默认 `ungoogled-software/ungoogled-chromium-windows` |
+| `-ChromePlusRepo` | Chrome++ 上游仓库，默认 `BlackRosePetals/chromeplus` |
+| `-ResolveOnly` | 只解析上游最新版本并输出发布 Tag，不下载任何文件 |
 
 ## GitHub Actions
 
@@ -51,9 +63,30 @@ pwsh .\build-portable.ps1 -Arch arm64 -Force
 - **手动触发**：选择架构，可选发布 Release
 - **定时任务**：每 12 小时（00:00 / 12:00 UTC）检查上游，三架构并行构建
 
-标签格式：`<ungoogled_tag>-<chrome_plus_tag>`（如 `147.0.7727.116-1.1-1.16.0`），已存在则自动跳过。
+标签格式：`<ungoogled_tag>-<chrome_plus_version>`（如 `147.0.7727.116-1.1-1.16.0`）。已存在则自动跳过，所以定时任务只在上游真的发布了新版本时才会构建。
 
-**自托管 Runner**：手动触发时输入 `["self-hosted","Windows","X64"]`；定时任务设置仓库变量 `PORTABLE_RUNNER_LABELS`。
+### 手动触发参数
+
+| 参数 | 说明 |
+|------|------|
+| `arch` | `all`（默认）并行构建 x64、x86、arm64 |
+| `publish` | 为构建产物创建 GitHub Release |
+| `force` | 即使 Release 标签已存在也强制重新构建 |
+| `runner_labels` | Runner 标签，JSON 数组格式，如 `["self-hosted","Windows","X64"]` |
+
+### 仓库变量
+
+| 变量 | 说明 |
+|------|------|
+| `PORTABLE_RUNNER_LABELS` | 定时任务使用的 Runner 标签，JSON 数组格式，默认 `["self-hosted","Windows","X64"]`。改成 `["windows-latest"]` 即使用 GitHub 官方 Runner。 |
+| `DEFENDER_EXCLUSION` | 可选。构建前加入 Microsoft Defender 排除项的路径，例如 `D:\actions\ungoogled-chromium-portable-builder`。留空则跳过。 |
+
+### 运行流程
+
+1. `detect` 用 `build-portable.ps1 -ResolveOnly` 解析上游最新版本并算出发布 Tag。
+2. `detect` 把该 Tag 与现有 Tag 比对，若已存在则直接结束，不做任何构建。
+3. `build` 按架构并行执行，产出 `artifacts/ungoogled-chromium-portable-<arch>.7z` 并作为工作流产物上传。
+4. `release` 下载产物并创建 GitHub Release；若 Release 已存在则替换其中的附件。
 
 ## Ungoogled Chromium 注意事项
 

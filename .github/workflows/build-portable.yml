@@ -1,0 +1,199 @@
+name: Build Ungoogled Chromium Portable
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Architecture to build ("all" builds every architecture)'
+        type: choice
+        default: all
+        options:
+          - all
+          - x64
+          - x86
+          - arm64
+      publish:
+        description: 'Publish a GitHub Release with the built packages'
+        type: boolean
+        default: false
+      force:
+        description: 'Build even if the release tag already exists'
+        type: boolean
+        default: false
+      runner_labels:
+        description: 'Runner labels as JSON array, e.g. ["self-hosted","Windows","X64"]'
+        type: string
+        default: ''
+  schedule:
+    # Every 12 hours: 00:00 and 12:00 UTC
+    - cron: '0 0,12 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Detect upstream updates
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      ungoogled_tag: ${{ steps.resolve.outputs.ungoogled_tag }}
+      chrome_plus_version: ${{ steps.resolve.outputs.chrome_plus_version }}
+      matrix_arch: ${{ steps.matrix.outputs.matrix_arch }}
+      should_build: ${{ steps.gate.outputs.should_build }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve latest upstream versions
+        id: resolve
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pwsh ./build-portable.ps1 -ResolveOnly
+
+      - name: Resolve build matrix
+        id: matrix
+        shell: bash
+        env:
+          REQUESTED: ${{ inputs.arch || 'all' }}
+        run: |
+          if [ "$REQUESTED" = "all" ]; then
+            echo "matrix_arch=[\"x64\",\"x86\",\"arm64\"]" >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix_arch=[\"$REQUESTED\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check whether the release tag already exists
+        id: gate
+        shell: bash
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ "$FORCE" = "true" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "force is enabled, building $TAG regardless of existing tags."
+            exit 0
+          fi
+          url="https://github.com/${{ github.repository }}.git"
+          if git ls-remote --exit-code --tags "$url" "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "Release tag $TAG already exists, nothing to do."
+          else
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "Release tag $TAG is new, building it."
+          fi
+
+  build:
+    name: Build ${{ matrix.arch }}
+    needs: detect
+    if: needs.detect.outputs.should_build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(needs.detect.outputs.matrix_arch) }}
+    runs-on: ${{ fromJSON(inputs.runner_labels || vars.PORTABLE_RUNNER_LABELS || '["self-hosted","Windows","X64"]') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        shell: pwsh
+        env:
+          TAG: ${{ needs.detect.outputs.tag }}
+          UNGOOGLED_TAG: ${{ needs.detect.outputs.ungoogled_tag }}
+          CHROME_PLUS_VERSION: ${{ needs.detect.outputs.chrome_plus_version }}
+        run: |
+          "RELEASE_TAG=$env:TAG" >> $env:GITHUB_ENV
+          "UNGOOGLED_TAG=$env:UNGOOGLED_TAG" >> $env:GITHUB_ENV
+          "CHROME_PLUS_VERSION=$env:CHROME_PLUS_VERSION" >> $env:GITHUB_ENV
+          Write-Host "Building $env:UNGOOGLED_TAG + Chrome++ $env:CHROME_PLUS_VERSION -> $env:TAG"
+
+      - name: Add Defender exclusions (optional)
+        if: ${{ vars.DEFENDER_EXCLUSION != '' }}
+        shell: pwsh
+        run: |
+          # Chrome++ ships a version.dll that Defender may quarantine.
+          # Set the DEFENDER_EXCLUSION repository variable to enable this.
+          Add-MpPreference -ExclusionPath "${{ vars.DEFENDER_EXCLUSION }}"
+          Write-Host "Added Defender exclusion: ${{ vars.DEFENDER_EXCLUSION }}"
+
+      - name: Ensure 7-Zip is available
+        shell: pwsh
+        run: |
+          $candidate = 'C:\Program Files\7-Zip\7z.exe'
+          if (Get-Command 7z -ErrorAction SilentlyContinue) {
+            Write-Host '7-Zip already available on PATH.'
+            exit 0
+          }
+          if (Test-Path -LiteralPath $candidate) {
+            Add-Content -LiteralPath $env:GITHUB_PATH -Value (Split-Path -Parent $candidate)
+            Write-Host 'Added 7-Zip to PATH from the default install location.'
+            exit 0
+          }
+          Write-Host '7-Zip not found, trying Chocolatey.'
+          choco install 7zip -y --no-progress
+          if (-not (Get-Command 7z -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $candidate)) {
+            Add-Content -LiteralPath $env:GITHUB_PATH -Value (Split-Path -Parent $candidate)
+          }
+          if (-not (Get-Command 7z -ErrorAction SilentlyContinue)) {
+            throw '7-Zip is required by build-portable.ps1. Install it on the runner and rerun.'
+          }
+
+      - name: Build portable package
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pwsh ./build-portable.ps1 -Arch '${{ matrix.arch }}' -Force
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ungoogled-chromium-portable-${{ matrix.arch }}
+          path: artifacts/ungoogled-chromium-portable-${{ matrix.arch }}.7z
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish release
+    needs: [detect, build]
+    if: >-
+      always() &&
+      needs.detect.outputs.should_build == 'true' &&
+      needs.build.result == 'success' &&
+      (github.event_name == 'schedule' || inputs.publish)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List downloaded packages
+        shell: bash
+        run: ls -lh dist
+
+      - name: Create or update release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.detect.outputs.tag }}
+        run: |
+          shopt -s nullglob
+          packages=(dist/*.7z)
+          if [ ${#packages[@]} -eq 0 ]; then
+            echo "No .7z packages were produced, aborting release." >&2
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists, replacing its assets."
+            gh release upload "$TAG" "${packages[@]}" --clobber
+          else
+            gh release create "$TAG" "${packages[@]}" --title "$TAG" --generate-notes
+          fi

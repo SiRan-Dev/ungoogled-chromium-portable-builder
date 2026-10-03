@@ -4,7 +4,17 @@
 
 [简体中文](README.zh-CN.md)
 
-Automatically builds portable [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium-windows) packages with the [Chrome++](https://github.com/Bush2021/chrome_plus) patch integrated. Supports x64 / x86 / arm64, and GitHub Actions checks upstream updates every 12 hours.
+Automatically builds portable [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium-windows) packages with the [Chrome++](https://github.com/BlackRosePetals/chromeplus) patch integrated. Supports x64 / x86 / arm64, and GitHub Actions checks upstream updates every 12 hours.
+
+## Upstream sources
+
+| Component | Repository |
+|-----------|------------|
+| ungoogled-chromium | [`ungoogled-software/ungoogled-chromium-windows`](https://github.com/ungoogled-software/ungoogled-chromium-windows) |
+| Chrome++ | [`BlackRosePetals/chromeplus`](https://github.com/BlackRosePetals/chromeplus) |
+
+The original `Bush2021/chrome_plus` repository is no longer available, so the build uses the maintained fork above. It ships the same asset layout (`<arch>/App/version.dll` and `<arch>/App/chrome++.ini`), so no other change is required. If either upstream moves again, point the build at the new repository with `-ChromePlusRepo` / `-UngoogledRepo` instead of editing the script.
+
 
 ## Pipeline
 
@@ -43,6 +53,9 @@ pwsh .\build-portable.ps1 -Arch arm64 -Force
 | `-SkipArchive` | Generate the directory only, without creating a `.7z` archive |
 | `-ChromePlusIniPath` | Use a custom `chrome++.ini` |
 | `-KeepWorkDir` | Keep the temporary extraction directory |
+| `-UngoogledRepo` | Upstream ungoogled-chromium repository, defaults to `ungoogled-software/ungoogled-chromium-windows` |
+| `-ChromePlusRepo` | Upstream Chrome++ repository, defaults to `BlackRosePetals/chromeplus` |
+| `-ResolveOnly` | Only resolve the latest upstream versions and print the release tag, without downloading anything |
 
 ## GitHub Actions
 
@@ -51,9 +64,30 @@ pwsh .\build-portable.ps1 -Arch arm64 -Force
 - **Manual runs**: choose an architecture and optionally publish a Release
 - **Scheduled runs**: check upstream every 12 hours (00:00 / 12:00 UTC) and build all three architectures in parallel
 
-Release tag format: `<ungoogled_tag>-<chrome_plus_tag>` (for example, `147.0.7727.116-1.1-1.16.0`). Existing tags are skipped automatically.
+Release tag format: `<ungoogled_tag>-<chrome_plus_version>` (for example, `147.0.7727.116-1.1-1.16.0`). Existing tags are skipped automatically, so a scheduled run only builds when upstream actually published something new.
 
-**Self-hosted runner**: for manual runs, enter `["self-hosted","Windows","X64"]`; for scheduled runs, set the repository variable `PORTABLE_RUNNER_LABELS`.
+### Manual run inputs
+
+| Input | Description |
+|-------|-------------|
+| `arch` | `all` (default) builds x64, x86 and arm64 in parallel |
+| `publish` | Create a GitHub Release for the built packages |
+| `force` | Build even if the release tag already exists |
+| `runner_labels` | Runner labels as a JSON array, e.g. `["self-hosted","Windows","X64"]` |
+
+### Repository variables
+
+| Variable | Description |
+|----------|-------------|
+| `PORTABLE_RUNNER_LABELS` | Runner labels used by scheduled runs, as a JSON array. Defaults to `["self-hosted","Windows","X64"]`. Use `["windows-latest"]` to build on GitHub-hosted runners instead. |
+| `DEFENDER_EXCLUSION` | Optional. A path added to the Microsoft Defender exclusion list before building, for example `D:\actions\ungoogled-chromium-portable-builder`. Leave empty to skip. |
+
+### How a run works
+
+1. `detect` resolves the latest upstream versions with `build-portable.ps1 -ResolveOnly` and computes the release tag.
+2. `detect` compares that tag against the existing tags. If it already exists, the run finishes without building.
+3. `build` runs once per architecture, packing `artifacts/ungoogled-chromium-portable-<arch>.7z` and uploading it as a workflow artifact.
+4. `release` downloads the packages and creates the GitHub Release, replacing the assets if the release already exists.
 
 ## Ungoogled Chromium Notes
 
