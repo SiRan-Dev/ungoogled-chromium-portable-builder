@@ -4,16 +4,16 @@
 
 [简体中文](README.zh-CN.md)
 
-Automatically builds portable [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium-windows) packages with the [Chrome++](https://github.com/BlackRosePetals/chromeplus) patch integrated. Supports x64 / x86 / arm64, and GitHub Actions checks upstream updates every 12 hours.
+Automatically builds portable [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium-windows) packages with the [Chrome++](https://github.com/Bush2021/chrome_plus) patch integrated. Supports x64 / x86 / arm64, and GitHub Actions checks upstream updates every 12 hours.
 
 ## Upstream sources
 
 | Component | Repository |
 |-----------|------------|
 | ungoogled-chromium | [`ungoogled-software/ungoogled-chromium-windows`](https://github.com/ungoogled-software/ungoogled-chromium-windows) |
-| Chrome++ | [`BlackRosePetals/chromeplus`](https://github.com/BlackRosePetals/chromeplus) |
+| Chrome++ | [`Bush2021/chrome_plus`](https://github.com/Bush2021/chrome_plus) |
 
-The original `Bush2021/chrome_plus` repository is no longer available, so the build uses the maintained fork above. It ships the same asset layout (`<arch>/App/version.dll` and `<arch>/App/chrome++.ini`), so no other change is required. If either upstream moves again, point the build at the new repository with `-ChromePlusRepo` / `-UngoogledRepo` instead of editing the script.
+Chrome++ releases ship the asset layout `<arch>/App/version.dll` and `<arch>/App/chrome++.ini`. If either upstream moves, point the build at the new repository with `-ChromePlusRepo` / `-UngoogledRepo` instead of editing the script.
 
 
 ## Pipeline
@@ -54,7 +54,7 @@ pwsh .\build-portable.ps1 -Arch arm64 -Force
 | `-ChromePlusIniPath` | Use a custom `chrome++.ini` |
 | `-KeepWorkDir` | Keep the temporary extraction directory |
 | `-UngoogledRepo` | Upstream ungoogled-chromium repository, defaults to `ungoogled-software/ungoogled-chromium-windows` |
-| `-ChromePlusRepo` | Upstream Chrome++ repository, defaults to `BlackRosePetals/chromeplus` |
+| `-ChromePlusRepo` | Upstream Chrome++ repository, defaults to `Bush2021/chrome_plus` |
 | `-ResolveOnly` | Only resolve the latest upstream versions and print the release tag, without downloading anything |
 
 ## GitHub Actions

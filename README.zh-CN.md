@@ -4,16 +4,16 @@
 
 [English](README.md)
 
-自动构建 [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium-windows) 便携版，集成 [Chrome++](https://github.com/BlackRosePetals/chromeplus) 补丁。支持 x64 / x86 / arm64，GitHub Actions 每 12 小时自动检查上游更新。
+自动构建 [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium-windows) 便携版，集成 [Chrome++](https://github.com/Bush2021/chrome_plus) 补丁。支持 x64 / x86 / arm64，GitHub Actions 每 12 小时自动检查上游更新。
 
 ## 上游来源
 
 | 组件 | 仓库 |
 |------|------|
 | ungoogled-chromium | [`ungoogled-software/ungoogled-chromium-windows`](https://github.com/ungoogled-software/ungoogled-chromium-windows) |
-| Chrome++ | [`BlackRosePetals/chromeplus`](https://github.com/BlackRosePetals/chromeplus) |
+| Chrome++ | [`Bush2021/chrome_plus`](https://github.com/Bush2021/chrome_plus) |
 
-原 `Bush2021/chrome_plus` 仓库已不可访问，因此改用上面这个仍在维护的 fork。它的压缩包结构完全一致（`<arch>/App/version.dll` 与 `<arch>/App/chrome++.ini`），无需其他改动。如果上游再次迁移，用 `-ChromePlusRepo` / `-UngoogledRepo` 指定新仓库即可，不必改脚本。
+Chrome++ 的压缩包结构为 `<arch>/App/version.dll` 与 `<arch>/App/chrome++.ini`。如果上游迁移，用 `-ChromePlusRepo` / `-UngoogledRepo` 指定新仓库即可，不必改脚本。
 
 ## 流程
 
@@ -53,7 +53,7 @@ pwsh .\build-portable.ps1 -Arch arm64 -Force
 | `-ChromePlusIniPath` | 自定义 `chrome++.ini` |
 | `-KeepWorkDir` | 保留解压临时目录 |
 | `-UngoogledRepo` | ungoogled-chromium 上游仓库，默认 `ungoogled-software/ungoogled-chromium-windows` |
-| `-ChromePlusRepo` | Chrome++ 上游仓库，默认 `BlackRosePetals/chromeplus` |
+| `-ChromePlusRepo` | Chrome++ 上游仓库，默认 `Bush2021/chrome_plus` |
 | `-ResolveOnly` | 只解析上游最新版本并输出发布 Tag，不下载任何文件 |
 
 ## GitHub Actions

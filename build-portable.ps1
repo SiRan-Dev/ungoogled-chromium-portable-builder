@@ -15,7 +15,7 @@ param(
 
     [string]$UngoogledRepo = 'ungoogled-software/ungoogled-chromium-windows',
 
-    [string]$ChromePlusRepo = 'BlackRosePetals/chromeplus',
+    [string]$ChromePlusRepo = 'Bush2021/chrome_plus',
 
     [switch]$KeepWorkDir,
 
