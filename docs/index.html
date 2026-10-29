@@ -130,6 +130,17 @@
   }
   .copy:hover { color: var(--accent); border-color: var(--accent); }
 
+  .banner {
+    display: none; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; margin-bottom: 14px; border-radius: 12px; font-size: 13.5px;
+    background: color-mix(in srgb, #f59e0b 12%, var(--card));
+    border: 1px solid color-mix(in srgb, #f59e0b 45%, var(--border));
+    color: var(--fg);
+  }
+  .banner.show { display: flex; }
+  .banner a { color: var(--accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+  .banner a:hover { text-decoration: underline; }
+
   .notice {
     display: none; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px;
     font-size: 13.5px;
@@ -172,6 +183,11 @@
       <span class="chip" id="updated">正在获取最新版本</span>
     </div>
   </header>
+
+  <div class="banner" id="fallback">
+    <span>当前网络受限，展示的是缓存数据，可能不是最新版本。</span>
+    <a href="https://github.com/SiRan-Dev/ungoogled-chromium-portable-builder/releases/latest" target="_blank" rel="noopener">查看 Releases</a>
+  </div>
 
   <div class="notice" id="notice"></div>
 
@@ -324,22 +340,26 @@
       const raw = localStorage.getItem(CACHE_KEY);
       if (raw) {
         const cached = JSON.parse(raw);
-        if (Date.now() - cached.t < CACHE_TTL && cached.d) return cached.d;
+        if (Date.now() - cached.t < CACHE_TTL && cached.d) {
+          return { release: cached.d, stale: !!cached.stale };
+        }
       }
     } catch (_) { }
 
     let data;
+    let stale = false;
     try {
       // 主数据源：GitHub API（无认证时限每 IP 60 次/小时）
       data = await getJson(API, { headers: { Accept: 'application/vnd.github+json' } });
     } catch (apiErr) {
-      // 兜底：发布流程生成的同源快照，不受限流影响
+      // 兜底：发布流程生成的同源快照，不受限流影响，但可能滞后
       data = await getJson(FALLBACK + '?t=' + Date.now(), { cache: 'no-store' });
+      stale = true;
     }
 
-    const slim = normalize(data);
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), d: slim })); } catch (_) { }
-    return slim;
+    const release = normalize(data);
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), d: release, stale: stale })); } catch (_) { }
+    return { release: release, stale: stale };
   }
 
   async function init() {
@@ -352,9 +372,13 @@
 
     const detected = await detectArch();
 
-    let release, assets;
+    const fallbackBar = $('fallback');
+
+    let release, assets, staleData = false;
     try {
-      release = await loadRelease();
+      const loaded = await loadRelease();
+      release = loaded.release;
+      staleData = loaded.stale;
       assets = parseAssets(release);
       if (!assets.length) throw new Error('最新版本暂无可用安装包');
     } catch (err) {
@@ -365,12 +389,17 @@
       heroBtn.textContent = '打开 Releases 页面';
       heroBtn.href = 'https://github.com/' + REPO + '/releases/latest';
       heroBtn.removeAttribute('aria-disabled');
-      grid.innerHTML = '<div class="skeleton err">' + err.message + '</div>';
+      console.error(err);
+      grid.innerHTML = '<div class="skeleton err">暂时无法获取版本信息，请点击上方按钮前往 Releases 页面。</div>';
       return;
     }
 
     $('tag').textContent = release.tag;
     $('updated').textContent = release.published ? '发布于 ' + formatDate(release.published) : '最新版本';
+
+    if (staleData) {
+      fallbackBar.className = 'banner show';
+    }
 
     const recommended = assets.find(function (a) { return a.arch === detected.arch; }) || assets[0];
     const label = LABELS[recommended.arch] || { title: recommended.arch, desc: '' };
