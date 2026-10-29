@@ -4,8 +4,6 @@
 
 [简体中文](README.zh-CN.md)
 
-**Download:** [siran-dev.github.io/ungoogled-chromium-portable-builder](https://siran-dev.github.io/ungoogled-chromium-portable-builder/) — detects your device architecture and recommends the matching build.
-
 Automatically builds portable [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium-windows) packages with the [Chrome++](https://github.com/Bush2021/chrome_plus) patch integrated. Supports x64 / x86 / arm64, and GitHub Actions checks upstream updates every 12 hours.
 
 ## Upstream sources
