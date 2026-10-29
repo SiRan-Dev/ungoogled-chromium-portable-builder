@@ -386,6 +386,7 @@
       : label.desc + ' · ' + formatSize(recommended.size);
     heroBtn.innerHTML = '立即下载 <small>' + formatSize(recommended.size) + '</small>';
     heroBtn.href = recommended.url;
+    heroBtn.removeAttribute('aria-disabled');
 
     if (recommended.digest && recommended.digest.indexOf('sha256:') === 0) {
       hashBox.hidden = false;
