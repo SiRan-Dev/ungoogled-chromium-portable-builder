@@ -15,7 +15,7 @@ on:
       publish:
         description: 'Publish a GitHub Release with the built packages'
         type: boolean
-        default: false
+        default: true
       force:
         description: 'Build even if the release tag already exists'
         type: boolean
