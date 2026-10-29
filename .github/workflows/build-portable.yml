@@ -155,7 +155,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ungoogled-chromium-portable-${{ matrix.arch }}
-          path: artifacts/ungoogled-chromium-portable-${{ matrix.arch }}.7z
+          path: artifacts/ungoogled-chromium-portable-${{ matrix.arch }}-*.7z
           if-no-files-found: error
           retention-days: 30
 

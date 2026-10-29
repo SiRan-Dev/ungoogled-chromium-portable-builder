@@ -86,7 +86,7 @@ Release tag format: `<ungoogled_tag>-<chrome_plus_version>` (for example, `147.0
 
 1. `detect` resolves the latest upstream versions with `build-portable.ps1 -ResolveOnly` and computes the release tag.
 2. `detect` compares that tag against the existing tags. If it already exists, the run finishes without building.
-3. `build` runs once per architecture, packing `artifacts/ungoogled-chromium-portable-<arch>.7z` and uploading it as a workflow artifact.
+3. `build` runs once per architecture, packing `artifacts/ungoogled-chromium-portable-<arch>-<ungoogled_tag>.7z` and uploading it as a workflow artifact.
 4. `release` downloads the packages and creates the GitHub Release, replacing the assets if the release already exists.
 
 ## Ungoogled Chromium Notes

@@ -85,7 +85,7 @@ pwsh .\build-portable.ps1 -Arch arm64 -Force
 
 1. `detect` 用 `build-portable.ps1 -ResolveOnly` 解析上游最新版本并算出发布 Tag。
 2. `detect` 把该 Tag 与现有 Tag 比对，若已存在则直接结束，不做任何构建。
-3. `build` 按架构并行执行，产出 `artifacts/ungoogled-chromium-portable-<arch>.7z` 并作为工作流产物上传。
+3. `build` 按架构并行执行，产出 `artifacts/ungoogled-chromium-portable-<arch>-<ungoogled_tag>.7z` 并作为工作流产物上传。
 4. `release` 下载产物并创建 GitHub Release；若 Release 已存在则替换其中的附件。
 
 ## Ungoogled Chromium 注意事项
