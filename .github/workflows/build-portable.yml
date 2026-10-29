@@ -198,3 +198,32 @@ jobs:
           else
             gh release create "$TAG" "${packages[@]}" --title "$TAG" --generate-notes
           fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Refresh download page snapshot
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.detect.outputs.tag }}
+        run: |
+          # 下载页优先读 GitHub API，被限流时回退到这份同源快照。
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" > "$RUNNER_TEMP/release.json"
+          mkdir -p docs
+          jq '{tag_name, name, published_at, html_url,
+               assets: [.assets[] | select(.name | test("\\.7z$"))
+                        | {name, size, browser_download_url, digest}]}' \
+            "$RUNNER_TEMP/release.json" > docs/latest.json
+
+          if git diff --quiet -- docs/latest.json; then
+            echo "docs/latest.json is already up to date."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/latest.json
+          git commit -m "chore: 更新下载页数据 ($TAG)"
+          git pull --rebase --autostash
+          git push

@@ -1,0 +1,26 @@
+{
+  "tag_name": "156.0.8078.47-1.1-1.18.3",
+  "name": "156.0.8078.47-1.1-1.18.3",
+  "published_at": "2026-10-29T02:31:19Z",
+  "html_url": "https://github.com/SiRan-Dev/ungoogled-chromium-portable-builder/releases/tag/156.0.8078.47-1.1-1.18.3",
+  "assets": [
+    {
+      "name": "ungoogled-chromium-portable-arm64-156.0.8078.47-1.1.7z",
+      "size": 116157177,
+      "browser_download_url": "https://github.com/SiRan-Dev/ungoogled-chromium-portable-builder/releases/download/156.0.8078.47-1.1-1.18.3/ungoogled-chromium-portable-arm64-156.0.8078.47-1.1.7z",
+      "digest": "sha256:8e53dca30992ea2efc5a1f4dc10fc93d2b5d711ad8763bd20dcaedf2ac0e2493"
+    },
+    {
+      "name": "ungoogled-chromium-portable-x64-156.0.8078.47-1.1.7z",
+      "size": 127036081,
+      "browser_download_url": "https://github.com/SiRan-Dev/ungoogled-chromium-portable-builder/releases/download/156.0.8078.47-1.1-1.18.3/ungoogled-chromium-portable-x64-156.0.8078.47-1.1.7z",
+      "digest": "sha256:94cf15e7c13d5a336a373d64b80cf84506735621dcc6fb0219b9046e33bde23f"
+    },
+    {
+      "name": "ungoogled-chromium-portable-x86-156.0.8078.47-1.1.7z",
+      "size": 115893901,
+      "browser_download_url": "https://github.com/SiRan-Dev/ungoogled-chromium-portable-builder/releases/download/156.0.8078.47-1.1-1.18.3/ungoogled-chromium-portable-x86-156.0.8078.47-1.1.7z",
+      "digest": "sha256:48807a0afaa73fbe5098c2dea40c1b9436b810b158c1b9814a171d0b947a4810"
+    }
+  ]
+}

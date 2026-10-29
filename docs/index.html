@@ -186,7 +186,8 @@
 (function () {
   const REPO = 'SiRan-Dev/ungoogled-chromium-portable-builder';
   const API = 'https://api.github.com/repos/' + REPO + '/releases/latest';
-  const CACHE_KEY = 'ucpb.latest.v1';
+  const FALLBACK = './latest.json';
+  const CACHE_KEY = 'ucpb.latest.v2';
   const CACHE_TTL = 5 * 60 * 1000;
 
   const LABELS = {
@@ -199,7 +200,7 @@
 
   function formatSize(bytes) {
     if (!bytes) return '';
-    const mb = bytes / 1048576;
+    const mb = bytes / 1000000;
     return (mb >= 100 ? mb.toFixed(0) : mb.toFixed(1)) + ' MB';
   }
 
@@ -219,19 +220,19 @@
     if (uaData && uaData.getHighEntropyValues) {
       try {
         const v = await uaData.getHighEntropyValues(['architecture', 'bitness']);
-        if (v.architecture === 'arm') return { arch: 'arm64', isWindows: true, note: 'Windows · ARM64' };
+        if (v.architecture === 'arm') return { arch: 'arm64', isWindows: true, note: 'ARM64' };
         if (v.architecture === 'x86') {
           return v.bitness === '32'
-            ? { arch: 'x86', isWindows: true, note: 'Windows · 32 位' }
-            : { arch: 'x64', isWindows: true, note: 'Windows · 64 位' };
+            ? { arch: 'x86', isWindows: true, note: '32 位系统' }
+            : { arch: 'x64', isWindows: true, note: '64 位系统' };
         }
       } catch (_) { /* 隐私设置可能阻止高熵值 */ }
     }
 
     if (/ARM64|aarch64/i.test(navigator.userAgent) || /ARM/i.test(navigator.platform || '')) {
-      return { arch: 'arm64', isWindows: true, note: 'Windows · ARM64' };
+      return { arch: 'arm64', isWindows: true, note: 'ARM64' };
     }
-    return { arch: 'x64', isWindows: true, note: 'Windows · 64 位' };
+    return { arch: 'x64', isWindows: true, note: '64 位系统' };
   }
 
   function parseAssets(release) {
@@ -244,13 +245,37 @@
       list.push({
         arch: arch,
         name: a.name,
-        url: a.browser_download_url,
+        url: a.url,
         size: a.size,
         digest: a.digest || ''
       });
     });
     const order = { x64: 0, x86: 1, arm64: 2 };
     return list.sort(function (a, b) { return order[a.arch] - order[b.arch]; });
+  }
+
+  // 统一 API 与 latest.json 两种数据源的结构
+  function normalize(data) {
+    return {
+      tag: data.tag_name || data.tag || '',
+      name: data.name || data.tag_name || '',
+      published: data.published_at || data.published || '',
+      url: data.html_url || ('https://github.com/' + REPO + '/releases/latest'),
+      assets: (data.assets || []).map(function (a) {
+        return {
+          name: a.name,
+          size: a.size,
+          url: a.browser_download_url || a.url,
+          digest: a.digest || ''
+        };
+      })
+    };
+  }
+
+  async function getJson(url, options) {
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(url + ' -> HTTP ' + res.status);
+    return res.json();
   }
 
   async function loadRelease() {
@@ -262,19 +287,16 @@
       }
     } catch (_) { }
 
-    const res = await fetch(API, { headers: { Accept: 'application/vnd.github+json' } });
-    if (!res.ok) throw new Error('GitHub API 返回 ' + res.status);
+    let data;
+    try {
+      // 主数据源：GitHub API（无认证时限每 IP 60 次/小时）
+      data = await getJson(API, { headers: { Accept: 'application/vnd.github+json' } });
+    } catch (apiErr) {
+      // 兜底：发布流程生成的同源快照，不受限流影响
+      data = await getJson(FALLBACK + '?t=' + Date.now(), { cache: 'no-store' });
+    }
 
-    const data = await res.json();
-    const slim = {
-      tag: data.tag_name,
-      name: data.name || data.tag_name,
-      published: data.published_at,
-      url: data.html_url,
-      assets: (data.assets || []).map(function (a) {
-        return { name: a.name, size: a.size, browser_download_url: a.browser_download_url, digest: a.digest };
-      })
-    };
+    const slim = normalize(data);
     try { localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), d: slim })); } catch (_) { }
     return slim;
   }
@@ -317,8 +339,10 @@
       notice.textContent = '检测到当前设备可能不是 Windows。以下安装包仅适用于 Windows 10 及以上系统，请根据目标设备选择。';
     }
 
-    heroTitle.textContent = 'Windows ' + label.title + ' 便携版';
-    heroDesc.textContent = label.desc + ' · ' + detected.note + ' · ' + formatSize(recommended.size);
+    heroTitle.textContent = 'Windows ' + recommended.arch + ' 便携版';
+    heroDesc.textContent = detected.isWindows
+      ? label.desc + ' · 检测到 ' + detected.note + ' · ' + formatSize(recommended.size)
+      : label.desc + ' · ' + formatSize(recommended.size);
     heroBtn.innerHTML = '立即下载 <small>' + formatSize(recommended.size) + '</small>';
     heroBtn.href = recommended.url;
 

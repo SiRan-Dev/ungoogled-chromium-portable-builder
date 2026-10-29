@@ -4,6 +4,8 @@
 
 [English](README.md)
 
+**下载**：[siran-dev.github.io/ungoogled-chromium-portable-builder](https://siran-dev.github.io/ungoogled-chromium-portable-builder/) — 自动识别设备架构并推荐对应版本。
+
 自动构建 [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium-windows) 便携版，集成 [Chrome++](https://github.com/Bush2021/chrome_plus) 补丁。支持 x64 / x86 / arm64，GitHub Actions 每 12 小时自动检查上游更新。
 
 ## 上游来源
